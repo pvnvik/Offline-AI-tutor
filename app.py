@@ -1,9 +1,38 @@
 import streamlit as st
 import os
+import io
+from pypdf import PdfReader
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 from vector import setup_vectorstore_from_text, get_retriever
 from tempfile import NamedTemporaryFile
+
+def extract_text_from_uploaded_file(uploaded_file) -> str:
+    """Extract text from uploaded txt or pdf file."""
+    file_bytes = uploaded_file.getvalue()
+    file_name = uploaded_file.name.lower()
+
+    if file_name.endswith('.pdf'):
+        reader = PdfReader(io.BytesIO(file_bytes))
+        pages_text = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text and text.strip():
+                pages_text.append(text.strip())
+        
+        if not pages_text:
+            raise ValueError(
+                "Could not extract any text from the PDF. The file may be empty or contain scanned images without selectable text."
+            )
+        return "\n\n".join(pages_text)
+    else:
+        # For text files, attempt standard encodings before falling back with character replacement
+        for encoding in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
+            try:
+                return file_bytes.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return file_bytes.decode('utf-8', errors='replace')
 
 st.set_page_config(
     page_title="AI Study Assistant",
@@ -94,8 +123,8 @@ if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'retriever' not in st.session_state:
     st.session_state.retriever = None
-if 'file_uploaded' not in st.session_state:
-    st.session_state.file_uploaded = False
+if 'current_file_id' not in st.session_state:
+    st.session_state.current_file_id = None
 
 with st.sidebar:
     st.title("📚 Document Upload")
@@ -103,21 +132,28 @@ with st.sidebar:
     
     uploaded_file = st.file_uploader("Choose a file", type=['txt', 'pdf'])
     
-    if uploaded_file is not None and not st.session_state.file_uploaded:
-        try:
-            content = uploaded_file.getvalue().decode('utf-8')
-            
-            file_id = f"upload_{hash(content)}"
-            
-            vectorstore = setup_vectorstore_from_text(content, file_id)
-            st.session_state.retriever = get_retriever(vectorstore)
-            st.session_state.file_uploaded = True
-            
-            st.success("File uploaded and processed successfully!")
-            
-        except Exception as e:
-            st.error(f"Error processing file: {str(e)}")
-            st.session_state.file_uploaded = False
+    if uploaded_file is not None:
+        file_identifier = f"{uploaded_file.name}_{uploaded_file.size}"
+        if st.session_state.current_file_id != file_identifier:
+            with st.spinner("Processing document..."):
+                try:
+                    content = extract_text_from_uploaded_file(uploaded_file)
+                    file_id = f"upload_{abs(hash(content))}"
+                    
+                    vectorstore = setup_vectorstore_from_text(content, file_id)
+                    st.session_state.retriever = get_retriever(vectorstore)
+                    st.session_state.current_file_id = file_identifier
+                    
+                    st.success("File uploaded and processed successfully!")
+                    
+                except Exception as e:
+                    st.error(f"Error processing file: {str(e)}")
+                    st.session_state.retriever = None
+                    st.session_state.current_file_id = None
+    else:
+        if st.session_state.current_file_id is not None:
+            st.session_state.retriever = None
+            st.session_state.current_file_id = None
 
 st.title("🤖 AI Study Assistant")
 

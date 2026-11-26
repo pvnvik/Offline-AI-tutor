@@ -1,129 +1,148 @@
 # Offline AI Tutor
 
-An intelligent tutoring system that leverages local Language Models and vector embeddings to provide interactive learning assistance with uploaded study materials.
+An intelligent tutoring system that leverages local Language Models and vector embeddings to provide interactive learning assistance with uploaded study materials—completely offline and privacy-focused.
 
 ## 🤔 Why Offline-AI-tutor?
 
-This project aims to facilitate personalized, offline-accessible AI tutors by integrating advanced retrieval techniques with language models. The core features include:
+This project facilitates personalized, offline-accessible AI tutoring by integrating Retrieval-Augmented Generation (RAG) with local language models. Key highlights:
 
-- **Vector Search**: Efficiently process and query document embeddings for quick similarity-based retrieval.
+- **Vector Search**: Efficiently processes and queries document embeddings with Chroma DB for accurate similarity-based retrieval.
+- **Context-Aware Chunking**: Uses recursive character splitting to keep chunks within embedding model context limits.
+- **Offline Functionality**: Seamless learning experience without needing an internet connection.
+- **Context-Aware Responses**: Combines retrieved study material with an AI tutor prompt to generate pedagogical, structured explanations.
+- **Interactive Web & CLI Interfaces**: Choose between a modern Streamlit web UI and a command-line interface.
+- **Privacy First**: All documents, embeddings, and model inferences stay 100% local on your machine.
 
-- **Offline Functionality**: Enable seamless learning experiences without internet connectivity.
-
-- **Context-Aware Responses**: Generate detailed, relevant answers by combining study material retrieval with AI models.
-
-- **Interactive Web Interface**: Upload documents, manage content, and engage with the AI tutor effortlessly.
-
-- **Modular Setup**: Easy dependency management with pandas, langchain, streamlit, and more for scalable development.
+---
 
 ## 🌟 Features
 
-- 📚 Upload and process study materials (currently supports .txt files)
-- 🔍 Semantic search through study content
-- 💬 Interactive chat interface with context-aware responses
-- 🎨 Modern dark theme UI
-- 🚀 Fully offline operation
-- 📱 Responsive design
-- 🔒 Privacy-focused (all processing happens locally)
+- 📚 **Multi-Format Document Support**: Upload and process `.pdf` and `.txt` files with automatic multi-encoding detection (`utf-8`, `utf-8-sig`, `latin-1`, `cp1252`).
+- ✂️ **Smart Text Chunking**: Recursively splits documents with configurable chunk sizes and overlap to fit model context windows.
+- 🔍 **Semantic Vector Search**: Powered by Chroma DB and Ollama embeddings (`mxbai-embed-large`).
+- 💬 **Interactive Chat Interface**: Context-aware tutoring with clear explanations, examples, and concept breakdowns.
+- 🎨 **Modern Dark Theme UI**: Sleek, responsive interface built with Streamlit.
+- 🖥️ **CLI Mode**: Terminal-based chat interface via `main.py`.
+- 🔒 **100% Offline & Private**: Zero cloud dependencies or data leaks.
+
+---
 
 ## 🛠️ Technologies Used
 
 - **Frontend**: Streamlit
-- **Language Model**: Ollama (tinyllama)
-- **Vector Store**: Chroma DB
-- **Embeddings**: mxbai-embed-large
-- **Framework**: LangChain
+- **Language Model**: Ollama (`tinyllama`)
+- **Embeddings**: Ollama (`mxbai-embed-large`)
+- **Vector Store**: Chroma DB (`langchain-chroma`)
+- **Orchestration**: LangChain (`langchain`, `langchain-ollama`, `langchain-text-splitters`)
+- **PDF Extraction**: `pypdf`
+
+---
 
 ## 📋 Prerequisites
 
 Before running the application, make sure you have:
 
-1. Python 3.8 or higher installed
-2. Ollama installed and running locally
-3. Sufficient disk space for vector storage
+1. **Python 3.8+** installed.
+2. **[Ollama](https://ollama.com/)** installed and running on your system.
+3. Download the required models in Ollama:
+   ```bash
+   ollama pull tinyllama
+   ollama pull mxbai-embed-large
+   ```
+
+---
 
 ## 🚀 Installation
 
-1. Clone the repository:
-```bash
-git clone https://github.com/pvnvik/Offline-AI-tutor.git
-cd Offline-AI-tutor
-```
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/pvnvik/Offline-AI-tutor.git
+   cd Offline-AI-tutor
+   ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-# On Windows
-.\venv\Scripts\activate
-# On Unix or MacOS
-source venv/bin/activate
-```
+2. **Create and activate a virtual environment**:
+   ```bash
+   python -m venv venv
+   
+   # On Windows (PowerShell):
+   .\venv\Scripts\Activate.ps1
+   # On Windows (CMD):
+   .\venv\Scripts\activate.bat
+   # On macOS / Linux:
+   source venv/bin/activate
+   ```
 
-3. Install the required packages:
-```bash
-pip install -r requirements.txt
-```
+3. **Install the dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+---
 
 ## 🎯 Usage
 
-1. Start the application:
+### Web Interface (Recommended)
+
+1. Start the Streamlit application:
+   ```bash
+   streamlit run app.py
+   ```
+2. Open your browser at `http://localhost:8501`.
+3. Upload your study material (`.pdf` or `.txt`) using the sidebar.
+4. Ask questions in the chat input to receive contextual answers from the tutor!
+
+### Command-Line Interface (CLI)
+
+Run the terminal-based tutor:
 ```bash
-streamlit run app.py
+python main.py
 ```
 
-2. Upload your study material through the sidebar
-3. Start asking questions about the content
-4. Get contextual, relevant responses from the AI tutor
+---
 
 ## 📁 Project Structure
 
 ```
 Offline-AI-tutor/
-├── app.py              # Main Streamlit application
-├── vector.py           # Vector store and document processing
-├── requirements.txt    # Project dependencies
-└── README.md          # Project documentation
+├── app.py              # Streamlit web UI & file upload handler
+├── main.py             # CLI interface for interactive questioning
+├── vector.py           # Document chunking, embeddings & vector store logic
+├── requirements.txt    # Project Python dependencies
+└── README.md           # Project documentation
 ```
+
+---
 
 ## 🔧 Configuration
 
-The application uses several key components that can be configured:
+The application components can be easily customized:
 
-1. **Vector Store**:
-   - Located in `./vectorstore_[hash]`
-   - Automatically created per document
-   - Persists embeddings for faster subsequent access
+1. **Embedding Model & Chunking** ([vector.py](file:///c:/Users/vikrant/Desktop/Offline-AI-Agent/vector.py)):
+   - Default embedding model: `mxbai-embed-large`
+   - Default chunk size: `800` characters with `120` character overlap (tuned for 512-token context limits)
+   - Vector persistence directory: `./vectorstore_[hash]`
 
-2. **Language Model**:
-   - Default: tinyllama
-   - Can be modified in `app.py`
+2. **LLM & Tutoring Persona** ([app.py](file:///c:/Users/vikrant/Desktop/Offline-AI-Agent/app.py) & [main.py](file:///c:/Users/vikrant/Desktop/Offline-AI-Agent/main.py)):
+   - Default LLM: `tinyllama` (can be switched to `llama3`, `mistral`, `phi3`, etc.)
+   - Customizable tutoring prompt template with pedagogical guidelines.
 
-3. **Embeddings**:
-   - Default: mxbai-embed-large
-   - Can be modified in `vector.py`
+---
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
+---
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+---
+
 ## 🙏 Acknowledgments
 
-- Built with LangChain
-- Powered by Ollama
-- UI crafted with Streamlit
-- Vector search by Chroma DB
-
-## 💡 Future Improvements
-
-- [ ] Support for PDF and other document formats
-- [ ] Multiple document handling
-- [ ] Enhanced chat history management
-- [ ] Export chat conversations
-- [ ] Custom model selection
-- [ ] Progress indicators for long operations
-- [ ] Improved error handling
-- [ ] User preferences storage
+- [LangChain](https://github.com/langchain-ai/langchain)
+- [Ollama](https://ollama.com/)
+- [Streamlit](https://streamlit.io/)
+- [Chroma DB](https://www.trychroma.com/)

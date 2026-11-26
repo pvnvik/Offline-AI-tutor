@@ -1,46 +1,72 @@
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import os
 
 def read_text_file(file_path):
-    """Read content from a text file."""
+    """Read content from a text file with encoding fallbacks."""
+    for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
+        try:
+            with open(file_path, 'r', encoding=enc) as file:
+                return file.read()
+        except UnicodeDecodeError:
+            continue
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            return None
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
             return file.read()
     except Exception as e:
         print(f"Error reading file: {e}")
         return None
 
-def process_text_content(content, source_id="uploaded_content"):
+def process_text_content(content, source_id="uploaded_content", chunk_size=800, chunk_overlap=120):
     """
-    Process text content directly into chunks and documents
+    Process text content into appropriately-sized chunks and documents.
+    Uses RecursiveCharacterTextSplitter so chunk lengths stay well within
+    the embedding model's context window limit (512 tokens for mxbai-embed-large).
+    
     Args:
         content: The text content to process
         source_id: Identifier for the source of the content
+        chunk_size: Maximum character length per chunk (default 800)
+        chunk_overlap: Overlap between consecutive chunks (default 120)
     Returns:
         tuple: (documents, ids) for vector store creation
     """
- 
-    chunks = [chunk.strip() for chunk in content.split('\n\n') if chunk.strip()]
-    
+    if not content or not content.strip():
+        return [], []
+
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+    raw_chunks = text_splitter.split_text(content)
 
     documents = []
     ids = []
     
-    for i, chunk in enumerate(chunks):
+    for chunk in raw_chunks:
+        cleaned_chunk = chunk.strip()
+        if not cleaned_chunk:
+            continue
         document = Document(
-            page_content=chunk,
+            page_content=cleaned_chunk,
             metadata={
                 'source': source_id,
-                'chunk_id': i,
-                'chunk_size': len(chunk),
-                'total_chunks': len(chunks)
+                'chunk_id': len(documents),
+                'chunk_size': len(cleaned_chunk),
             }
         )
         documents.append(document)
-        ids.append(f"doc_{i}")
+        ids.append(f"doc_{len(documents)}")
         
+    for doc in documents:
+        doc.metadata['total_chunks'] = len(documents)
+
     return documents, ids
 
 def setup_vectorstore(file_path):
@@ -51,20 +77,17 @@ def setup_vectorstore(file_path):
     Returns:
         Chroma: Initialized vector store
     """
-
     content = read_text_file(file_path)
     if not content:
         raise ValueError("Could not read file content")
 
     embeddings = OllamaEmbeddings(model="mxbai-embed-large")
-    
-  
     documents, ids = process_text_content(content, file_path)
+    if not documents:
+        raise ValueError("No readable text found to index into the vector store.")
 
-
-    db_location = f"./vectorstore_{hash(file_path)}"
+    db_location = f"./vectorstore_{abs(hash(file_path))}"
     
-  
     vectorstore = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
@@ -83,16 +106,13 @@ def setup_vectorstore_from_text(content, source_id="uploaded_content"):
     Returns:
         Chroma: Initialized vector store
     """
-
     embeddings = OllamaEmbeddings(model="mxbai-embed-large")
-    
-
     documents, ids = process_text_content(content, source_id)
-    
+    if not documents:
+        raise ValueError("No readable text found to index into the vector store.")
 
-    db_location = f"./vectorstore_{hash(source_id)}"
+    db_location = f"./vectorstore_{abs(hash(source_id))}"
     
-
     vectorstore = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,

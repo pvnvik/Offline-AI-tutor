@@ -3,3 +3,5 @@ langchain
 langchain-ollama
 langchain-chroma
 streamlit
+pypdf
+langchain-text-splitters
